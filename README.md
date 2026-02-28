@@ -1,15 +1,15 @@
 # SmartShop – Scan & Go Prototype
 
-A Sainsbury's SmartShop-style self-scan prototype built with vanilla HTML/CSS/JS.
+A self-scan prototype built with vanilla HTML/CSS/JS.
 
 ## Features
 
-- 📷 Live barcode scanning via camera (Quagga.js)
-- 🔢 Manual barcode entry
-- 🛒 Real product data from Open Food Facts API (no key required)
-- 🍫 6 bundled example products (works offline)
-- 💳 Payment sheet with Apple Pay / Google Pay (OS-detected) + card scan UI
-- 📱 Mobile-first responsive design
+-  Live barcode scanning via camera (Quagga.js)
+-  Manual barcode entry
+-  Real product data from Open Food Facts API (no key required)
+-  6 bundled example products (works offline)
+-  Payment sheet with Apple Pay / Google Pay (OS-detected) + card scan UI
+-  Mobile-first responsive design
 
 ## Usage
 
