@@ -1,0 +1,910 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>SmartShop – Scan & Go</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+<style>
+  :root {
+    --orange: #f06c00;
+    --orange-light: #ff8c2a;
+    --orange-pale: #fff4eb;
+    --green: #2d8c4e;
+    --bg: #f5f5f7;
+    --white: #ffffff;
+    --text: #1a1a2e;
+    --muted: #888899;
+    --border: #e8e8f0;
+    --red: #e53935;
+    --shadow: 0 4px 24px rgba(0,0,0,.08);
+    --shadow-lg: 0 8px 40px rgba(0,0,0,.14);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Nunito', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; max-width: 430px; margin: 0 auto; overflow-x: hidden; }
+
+  /* TOP BAR */
+  .topbar { background: var(--orange); padding: 0 16px; height: 60px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 12px rgba(240,108,0,.3); }
+  .logo { font-size: 1.3rem; font-weight: 900; color: #fff; letter-spacing: -.5px; }
+  .logo span { color: #ffe0b2; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .basket-btn { background: rgba(255,255,255,.2); border: none; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; cursor: pointer; position: relative; transition: background .2s; }
+  .basket-btn:hover { background: rgba(255,255,255,.3); }
+  .basket-count { position: absolute; top: -4px; right: -4px; background: var(--green); color: #fff; font-size: 10px; font-weight: 800; width: 18px; height: 18px; border-radius: 50%; display: none; align-items: center; justify-content: center; border: 2px solid var(--orange); }
+  .basket-count.visible { display: flex; }
+  .total-chip { background: rgba(255,255,255,.2); color: #fff; font-size: 14px; font-weight: 800; padding: 4px 12px; border-radius: 20px; font-family: 'JetBrains Mono', monospace; }
+
+  /* PAGES */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* ── SCAN PAGE ── */
+  .scan-page { padding: 48px 24px 100px; display: flex; flex-direction: column; align-items: center; }
+  .scan-icon-wrap { width: 100px; height: 100px; background: var(--orange-pale); border-radius: 30px; display: flex; align-items: center; justify-content: center; margin-bottom: 22px; border: 2px solid rgba(240,108,0,.12); }
+  .scan-title { font-size: 1.7rem; font-weight: 900; margin-bottom: 8px; text-align: center; }
+  .scan-sub { color: var(--muted); font-size: .9rem; font-weight: 600; text-align: center; line-height: 1.6; margin-bottom: 40px; }
+
+  .action-cards { width: 100%; display: flex; flex-direction: column; gap: 14px; }
+
+  .action-card { background: var(--white); border-radius: 20px; padding: 22px 20px; display: flex; align-items: center; gap: 18px; cursor: pointer; border: 2px solid var(--border); transition: all .2s; box-shadow: var(--shadow); width: 100%; text-align: left; font-family: 'Nunito', sans-serif; }
+  .action-card:hover { border-color: var(--orange); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(240,108,0,.15); }
+  .action-card.primary { background: var(--orange); border-color: var(--orange); box-shadow: 0 6px 24px rgba(240,108,0,.35); }
+  .action-card.primary:hover { background: var(--orange-light); border-color: var(--orange-light); }
+
+  .card-icon { width: 54px; height: 54px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .action-card.primary .card-icon { background: rgba(255,255,255,.2); }
+  .action-card:not(.primary) .card-icon { background: var(--orange-pale); }
+  .card-icon svg { width: 28px; height: 28px; }
+
+  .card-text { flex: 1; }
+  .card-title { font-size: 1.05rem; font-weight: 900; margin-bottom: 4px; }
+  .action-card.primary .card-title { color: #fff; }
+  .action-card:not(.primary) .card-title { color: var(--text); }
+  .card-desc { font-size: .78rem; font-weight: 600; line-height: 1.4; }
+  .action-card.primary .card-desc { color: rgba(255,255,255,.7); }
+  .action-card:not(.primary) .card-desc { color: var(--muted); }
+
+  .card-arrow { font-size: 1.2rem; flex-shrink: 0; }
+  .action-card.primary .card-arrow { color: rgba(255,255,255,.6); }
+  .action-card:not(.primary) .card-arrow { color: var(--muted); }
+
+  /* Camera live view */
+  .camera-view { display: none; width: 100%; flex-direction: column; gap: 14px; }
+  .camera-view.active { display: flex; }
+  .viewfinder-wrap { position: relative; width: 100%; aspect-ratio: 4/3; background: #111; border-radius: 20px; overflow: hidden; box-shadow: var(--shadow-lg); }
+  #camera-video { width: 100%; height: 100%; object-fit: cover; display: block; }
+  .viewfinder-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+  .scan-box { width: 65%; aspect-ratio: 3/1.4; border: 2.5px solid var(--orange-light); border-radius: 12px; position: relative; box-shadow: 0 0 0 2000px rgba(0,0,0,.45); }
+  .scan-line { position: absolute; left: 8px; right: 8px; height: 2px; background: linear-gradient(90deg, transparent, var(--orange-light), transparent); animation: scanLine 2s ease-in-out infinite; }
+  @keyframes scanLine { 0%,100% { top: 15%; } 50% { top: 80%; } }
+  .corner { position: absolute; width: 18px; height: 18px; border-color: var(--orange); border-style: solid; border-width: 0; }
+  .corner.tl { top:-3px;left:-3px;border-top-width:3px;border-left-width:3px;border-radius:4px 0 0 0; }
+  .corner.tr { top:-3px;right:-3px;border-top-width:3px;border-right-width:3px;border-radius:0 4px 0 0; }
+  .corner.bl { bottom:-3px;left:-3px;border-bottom-width:3px;border-left-width:3px;border-radius:0 0 0 4px; }
+  .corner.br { bottom:-3px;right:-3px;border-bottom-width:3px;border-right-width:3px;border-radius:0 0 4px 0; }
+  .cam-status { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.65); color: #fff; font-size: 11px; font-weight: 700; padding: 5px 14px; border-radius: 20px; white-space: nowrap; font-family: 'JetBrains Mono', monospace; }
+  .btn-stop { width: 100%; padding: 14px; background: var(--white); color: var(--red); border: 2px solid #ffd5d5; border-radius: 14px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: .95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all .2s; }
+  .btn-stop:hover { background: #fff0f0; }
+
+  /* MANUAL MODAL */
+  .modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 200; align-items: flex-end; }
+  .modal-overlay.show { display: flex; }
+  .modal-sheet { background: var(--white); width: 100%; max-width: 430px; margin: 0 auto; border-radius: 24px 24px 0 0; padding: 12px 20px 40px; animation: slideUp .3s cubic-bezier(.16,1,.3,1); }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .sheet-handle { width: 40px; height: 4px; background: var(--border); border-radius: 99px; margin: 0 auto 24px; }
+  .modal-title { font-size: 1.2rem; font-weight: 900; margin-bottom: 6px; }
+  .modal-sub { font-size: .85rem; color: var(--muted); font-weight: 600; margin-bottom: 20px; }
+  .manual-input { width: 100%; border: 2px solid var(--border); border-radius: 12px; padding: 14px 16px; font-family: 'JetBrains Mono', monospace; font-size: 1rem; font-weight: 500; color: var(--text); background: var(--bg); outline: none; transition: border-color .2s; margin-bottom: 12px; text-align: center; letter-spacing: .05em; }
+  .manual-input:focus { border-color: var(--orange); }
+  .btn-lookup { width: 100%; padding: 15px; background: var(--orange); color: #fff; border: none; border-radius: 14px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 1rem; cursor: pointer; transition: all .2s; margin-bottom: 10px; box-shadow: 0 4px 16px rgba(240,108,0,.3); }
+  .btn-lookup:hover { background: var(--orange-light); }
+  .btn-close-modal { width: 100%; padding: 12px; background: transparent; border: none; font-family: 'Nunito', sans-serif; font-weight: 700; font-size: .9rem; color: var(--muted); cursor: pointer; margin-bottom: 20px; }
+  .examples-label { font-size: .7rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
+  .example-list { display: flex; flex-direction: column; gap: 6px; }
+  .example-row { display: flex; align-items: center; justify-content: space-between; padding: 11px 14px; background: var(--bg); border-radius: 10px; cursor: pointer; transition: all .15s; border: 1.5px solid var(--border); }
+  .example-row:hover { background: var(--orange-pale); border-color: var(--orange); }
+  .ex-name { font-size: .85rem; font-weight: 800; }
+  .ex-code { font-family: 'JetBrains Mono', monospace; font-size: .7rem; color: var(--muted); }
+
+  /* PRODUCT SHEET */
+  .result-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 300; align-items: flex-end; }
+  .result-overlay.show { display: flex; }
+  .result-sheet { background: var(--white); width: 100%; max-width: 430px; margin: 0 auto; border-radius: 24px 24px 0 0; padding: 12px 20px 32px; animation: slideUp .3s cubic-bezier(.16,1,.3,1); max-height: 88vh; overflow-y: auto; }
+  .product-header { display: flex; gap: 16px; align-items: flex-start; margin-bottom: 18px; }
+  .product-img { width: 90px; height: 90px; object-fit: contain; border-radius: 12px; background: var(--bg); border: 1px solid var(--border); flex-shrink: 0; }
+  .product-img-placeholder { width: 90px; height: 90px; background: var(--bg); border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 2.2rem; }
+  .product-brand { font-size: .7rem; font-weight: 800; color: var(--orange); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 4px; }
+  .product-name { font-size: 1.05rem; font-weight: 800; line-height: 1.3; margin-bottom: 8px; }
+  .product-weight { font-size: .8rem; color: var(--muted); font-weight: 600; }
+  .nutri-row { display: flex; gap: 8px; margin-bottom: 16px; }
+  .nutri-pill { background: var(--bg); border-radius: 8px; padding: 8px 12px; text-align: center; flex: 1; }
+  .nutri-val { font-size: .85rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+  .nutri-key { font-size: .6rem; color: var(--muted); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; }
+  .price-row { display: flex; align-items: center; justify-content: space-between; background: var(--orange-pale); border-radius: 14px; padding: 14px 16px; margin-bottom: 12px; border: 1.5px solid rgba(240,108,0,.15); }
+  .price-label { font-size: .85rem; font-weight: 700; color: var(--muted); }
+  .price-val { font-size: 1.5rem; font-weight: 900; color: var(--orange); font-family: 'JetBrains Mono', monospace; }
+  .qty-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .qty-label { font-size: .9rem; font-weight: 700; }
+  .qty-ctrl { display: flex; align-items: center; background: var(--bg); border-radius: 12px; border: 1.5px solid var(--border); overflow: hidden; }
+  .qty-btn { width: 40px; height: 40px; border: none; background: transparent; font-size: 1.3rem; font-weight: 800; color: var(--orange); cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s; }
+  .qty-btn:hover { background: rgba(240,108,0,.1); }
+  .qty-val { width: 40px; text-align: center; font-size: 1rem; font-weight: 800; font-family: 'JetBrains Mono', monospace; }
+  .btn-add-basket { width: 100%; padding: 16px; background: var(--green); color: #fff; border: none; border-radius: 14px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 1rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px; transition: all .2s; box-shadow: 0 4px 16px rgba(45,140,78,.3); margin-bottom: 10px; }
+  .btn-add-basket:hover { background: #27a348; transform: translateY(-1px); }
+  .btn-cancel { width: 100%; padding: 12px; background: transparent; border: none; font-family: 'Nunito', sans-serif; font-weight: 700; font-size: .9rem; color: var(--muted); cursor: pointer; }
+  .allergen-wrap { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 14px; }
+  .allergen-tag { background: #fff3cd; color: #856404; border-radius: 6px; padding: 3px 8px; font-size: .65rem; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; border: 1px solid #ffe083; }
+  .error-card { background: #fff0f0; border-radius: 14px; padding: 24px; text-align: center; border: 1.5px solid #ffd5d5; margin-bottom: 12px; }
+  .error-icon { font-size: 2.5rem; margin-bottom: 10px; }
+  .error-card p { font-weight: 800; color: var(--red); font-size: 1rem; margin-bottom: 4px; }
+  .error-card small { color: var(--muted); font-weight: 600; font-size: .8rem; }
+
+  /* BASKET */
+  .basket-page { padding: 20px 20px 100px; }
+  .section-title { font-size: 1.3rem; font-weight: 900; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+  .count-badge { background: var(--orange-pale); color: var(--orange); font-size: .75rem; font-weight: 800; padding: 2px 10px; border-radius: 99px; }
+  .basket-empty { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .basket-empty svg { width: 64px; height: 64px; opacity: .3; margin-bottom: 16px; display: block; margin-inline: auto; }
+  .basket-empty p { font-weight: 700; font-size: 1rem; margin-bottom: 6px; }
+  .basket-empty small { font-size: .8rem; font-weight: 600; }
+  .basket-item { background: var(--white); border-radius: 14px; padding: 14px; margin-bottom: 10px; display: flex; align-items: center; gap: 12px; box-shadow: var(--shadow); animation: slideIn .25s ease; }
+  @keyframes slideIn { from { opacity:0; transform: translateX(16px); } to { opacity:1; transform: translateX(0); } }
+  .item-thumb { width: 54px; height: 54px; border-radius: 10px; object-fit: contain; background: var(--bg); border: 1px solid var(--border); flex-shrink: 0; }
+  .item-thumb-ph { width: 54px; height: 54px; border-radius: 10px; background: var(--bg); border: 1px solid var(--border); flex-shrink: 0; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; }
+  .item-detail { flex: 1; min-width: 0; }
+  .item-name { font-size: .85rem; font-weight: 800; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .item-qty-price { font-size: .75rem; color: var(--muted); font-weight: 600; font-family: 'JetBrains Mono', monospace; }
+  .item-price { font-size: 1rem; font-weight: 900; font-family: 'JetBrains Mono', monospace; flex-shrink: 0; }
+  .item-remove { width: 28px; height: 28px; border: none; background: #fff0f0; border-radius: 50%; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background .15s; flex-shrink: 0; }
+  .item-remove:hover { background: #ffd5d5; }
+  .item-remove svg { width: 14px; height: 14px; stroke: var(--red); fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .checkout-card { background: var(--white); border-radius: 16px; padding: 18px; margin-top: 20px; box-shadow: var(--shadow); }
+  .checkout-row { display: flex; justify-content: space-between; align-items: center; padding: 6px 0; font-size: .9rem; font-weight: 600; }
+  .checkout-row.total { border-top: 2px solid var(--border); margin-top: 8px; padding-top: 14px; font-size: 1.1rem; font-weight: 900; }
+  .checkout-row .val { font-family: 'JetBrains Mono', monospace; }
+  .checkout-row.total .val { color: var(--orange); font-size: 1.3rem; }
+  .btn-checkout { width: 100%; padding: 16px; margin-top: 14px; background: var(--orange); color: #fff; border: none; border-radius: 14px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 1rem; cursor: pointer; transition: all .2s; box-shadow: 0 4px 16px rgba(240,108,0,.35); }
+  .btn-checkout:hover { background: var(--orange-light); transform: translateY(-1px); }
+
+  /* BOTTOM NAV */
+  .bottom-nav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: 100%; max-width: 430px; background: var(--white); border-top: 1px solid var(--border); display: flex; z-index: 100; box-shadow: 0 -4px 20px rgba(0,0,0,.06); }
+  .nav-item { flex: 1; padding: 10px 0 14px; display: flex; flex-direction: column; align-items: center; gap: 4px; cursor: pointer; border: none; background: transparent; font-family: 'Nunito', sans-serif; font-size: .65rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; transition: color .2s; position: relative; }
+  .nav-item svg { width: 22px; height: 22px; transition: all .2s; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .nav-item.active { color: var(--orange); }
+  .nav-item.active svg { transform: scale(1.15); }
+  .nav-badge { position: absolute; top: 6px; right: calc(50% - 22px); background: var(--green); color: #fff; font-size: 9px; font-weight: 800; padding: 1px 5px; border-radius: 99px; display: none; }
+  .nav-badge.visible { display: block; }
+
+  /* LOADING */
+  .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(255,255,255,.85); z-index: 400; align-items: center; justify-content: center; flex-direction: column; gap: 16px; font-weight: 800; color: var(--orange); }
+  .loading-overlay.show { display: flex; }
+  .spinner { width: 40px; height: 40px; border: 4px solid var(--orange-pale); border-top-color: var(--orange); border-radius: 50%; animation: spin .7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* TOAST */
+  .toast { position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--text); color: #fff; padding: 10px 20px; border-radius: 99px; font-size: .85rem; font-weight: 700; opacity: 0; transition: all .3s; z-index: 500; white-space: nowrap; pointer-events: none; }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* SUCCESS */
+  .success-overlay { display: none; position: fixed; inset: 0; background: var(--green); z-index: 600; align-items: center; justify-content: center; flex-direction: column; gap: 16px; color: #fff; text-align: center; padding: 40px; }
+  .success-overlay.show { display: flex; animation: fadeIn .3s ease; }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  .success-overlay .check { font-size: 5rem; animation: pop .4s cubic-bezier(.16,1,.3,1); }
+  @keyframes pop { from { transform: scale(0); } to { transform: scale(1); } }
+  .success-overlay h2 { font-size: 2rem; font-weight: 900; }
+  .success-overlay p { font-size: 1rem; font-weight: 600; opacity: .8; }
+  .success-total { font-size: 3rem; font-weight: 900; font-family: 'JetBrains Mono', monospace; }
+  .btn-done { background: rgba(255,255,255,.2); border: 2px solid rgba(255,255,255,.4); color: #fff; padding: 14px 40px; border-radius: 99px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 1rem; cursor: pointer; margin-top: 12px; transition: background .2s; }
+  .btn-done:hover { background: rgba(255,255,255,.3); }
+
+  /* PAYMENT SHEET */
+  .pay-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.5); z-index: 350; align-items: flex-end; }
+  .pay-overlay.show { display: flex; }
+  .pay-sheet { background: var(--white); width: 100%; max-width: 430px; margin: 0 auto; border-radius: 24px 24px 0 0; padding: 12px 20px 40px; animation: slideUp .3s cubic-bezier(.16,1,.3,1); max-height: 90vh; overflow-y: auto; }
+  .pay-title { font-size: 1.2rem; font-weight: 900; margin-bottom: 4px; }
+  .pay-sub { font-size: .82rem; color: var(--muted); font-weight: 600; margin-bottom: 22px; }
+  .pay-total-row { display: flex; justify-content: space-between; align-items: center; background: var(--bg); border-radius: 12px; padding: 12px 16px; margin-bottom: 20px; }
+  .pay-total-label { font-size: .85rem; font-weight: 700; color: var(--muted); }
+  .pay-total-val { font-size: 1.2rem; font-weight: 900; font-family: 'JetBrains Mono', monospace; color: var(--orange); }
+  .btn-native-pay { width: 100%; padding: 16px; border: none; border-radius: 14px; font-size: 1rem; font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all .2s; margin-bottom: 12px; font-family: 'Nunito', sans-serif; }
+  .btn-apple-pay { background: #000; color: #fff; }
+  .btn-apple-pay:hover { background: #222; }
+  .btn-google-pay { background: #fff; color: #1a1a2e; border: 2px solid var(--border); box-shadow: 0 2px 12px rgba(0,0,0,.08); }
+  .btn-google-pay:hover { background: #f8f8f8; }
+  .pay-divider { display: flex; align-items: center; gap: 12px; margin-bottom: 16px; }
+  .pay-divider::before, .pay-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+  .pay-divider span { font-size: .75rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; white-space: nowrap; }
+  .btn-scan-card { width: 100%; padding: 15px; border: 2px dashed var(--border); border-radius: 14px; background: transparent; color: var(--text); font-family: 'Nunito', sans-serif; font-weight: 800; font-size: .95rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; transition: all .2s; margin-bottom: 10px; }
+  .btn-scan-card:hover { border-color: var(--orange); background: var(--orange-pale); color: var(--orange); }
+  .card-form { display: none; margin-top: 4px; }
+  .card-form.show { display: block; }
+  .card-field-label { font-size: .7rem; font-weight: 800; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; margin-top: 12px; }
+  .card-input { width: 100%; border: 2px solid var(--border); border-radius: 10px; padding: 12px 14px; font-family: 'JetBrains Mono', monospace; font-size: .95rem; font-weight: 500; color: var(--text); background: var(--bg); outline: none; transition: border-color .2s; }
+  .card-input:focus { border-color: var(--orange); }
+  .card-row { display: flex; gap: 10px; }
+  .card-row .card-input { flex: 1; }
+  .btn-pay-card { width: 100%; padding: 15px; background: var(--green); color: #fff; border: none; border-radius: 14px; font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 1rem; cursor: pointer; margin-top: 14px; transition: all .2s; box-shadow: 0 4px 16px rgba(45,140,78,.3); }
+  .btn-pay-card:hover { background: #27a348; }
+  .btn-close-pay { width: 100%; padding: 12px; background: transparent; border: none; font-family: 'Nunito', sans-serif; font-weight: 700; font-size: .85rem; color: var(--muted); cursor: pointer; margin-top: 4px; }
+  .card-scan-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.92); z-index: 500; flex-direction: column; align-items: center; justify-content: center; gap: 24px; }
+  .card-scan-overlay.show { display: flex; }
+  .card-frame { width: 300px; height: 190px; border: 3px solid var(--orange-light); border-radius: 18px; position: relative; overflow: hidden; background: linear-gradient(135deg, #1a1a3e, #2d2d5e); }
+  .card-chip { width: 40px; height: 30px; background: linear-gradient(135deg, #d4a843, #f5d06e); border-radius: 5px; position: absolute; top: 36px; left: 22px; }
+  .card-scan-line { position: absolute; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, transparent, var(--orange), transparent); animation: scanLine 1.8s ease-in-out infinite; }
+  .card-corner { position: absolute; width: 22px; height: 22px; border-color: var(--orange); border-style: solid; border-width: 0; }
+  .card-corner.tl { top:-3px;left:-3px;border-top-width:3px;border-left-width:3px;border-radius:4px 0 0 0; }
+  .card-corner.tr { top:-3px;right:-3px;border-top-width:3px;border-right-width:3px;border-radius:0 4px 0 0; }
+  .card-corner.bl { bottom:-3px;left:-3px;border-bottom-width:3px;border-left-width:3px;border-radius:0 0 0 4px; }
+  .card-corner.br { bottom:-3px;right:-3px;border-bottom-width:3px;border-right-width:3px;border-radius:0 0 4px 0; }
+  .card-scan-hint { color: rgba(255,255,255,.7); font-size: .9rem; font-weight: 700; text-align: center; }
+  .btn-cancel-scan { background: rgba(255,255,255,.1); border: 1.5px solid rgba(255,255,255,.2); color: #fff; padding: 12px 32px; border-radius: 99px; font-family: 'Nunito', sans-serif; font-weight: 700; font-size: .9rem; cursor: pointer; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div class="topbar">
+  <div class="logo">Smart<span>Shop</span></div>
+  <div class="topbar-right">
+    <div class="total-chip" id="topTotal">£0.00</div>
+    <button class="basket-btn" onclick="showPage('basket')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/>
+      </svg>
+      <span class="basket-count" id="basketCount">0</span>
+    </button>
+  </div>
+</div>
+
+<!-- ══ SCAN PAGE ══ -->
+<div class="page active" id="page-scan">
+  <div class="scan-page">
+
+    <!-- Default state -->
+    <div id="scanDefault" style="width:100%;display:flex;flex-direction:column;align-items:center;">
+      <div class="scan-icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="48" height="48">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <path d="M14 14h3v3m0 4h4m-4 0v-4m4 4v-4m0-4h-4"/>
+        </svg>
+      </div>
+      <div class="scan-title">Scan & Go</div>
+      <div class="scan-sub">Scan a barcode or type the number<br>to add a product to your basket</div>
+
+      <div class="action-cards">
+        <button class="action-card primary" onclick="startCamera()">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/>
+              <circle cx="12" cy="13" r="4"/>
+            </svg>
+          </div>
+          <div class="card-text">
+            <div class="card-title">Scan Barcode</div>
+            <div class="card-desc">Point your camera at any product barcode to scan instantly</div>
+          </div>
+          <div class="card-arrow">→</div>
+        </button>
+
+        <button class="action-card" onclick="showManualModal()">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="var(--orange)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="3" width="16" height="18" rx="2"/>
+              <path d="M8 7h8M8 11h8M8 15h5"/>
+            </svg>
+          </div>
+          <div class="card-text">
+            <div class="card-title">Enter Barcode</div>
+            <div class="card-desc">Type the barcode number printed under the lines</div>
+          </div>
+          <div class="card-arrow" style="color:var(--muted)">→</div>
+        </button>
+      </div>
+    </div>
+
+    <!-- Camera live view (hidden until activated) -->
+    <div class="camera-view" id="cameraView">
+      <div class="viewfinder-wrap">
+        <video id="camera-video" autoplay playsinline></video>
+        <div class="viewfinder-overlay">
+          <div class="scan-box">
+            <div class="scan-line"></div>
+            <div class="corner tl"></div><div class="corner tr"></div>
+            <div class="corner bl"></div><div class="corner br"></div>
+          </div>
+        </div>
+        <div class="cam-status" id="camStatus">📷 Point at a barcode…</div>
+      </div>
+      <button class="btn-stop" onclick="stopCamera()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="var(--red)" stroke-width="2.2" stroke-linecap="round" width="18" height="18">
+          <circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6" fill="var(--red)" stroke="none"/>
+        </svg>
+        Stop Camera
+      </button>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══ BASKET PAGE ══ -->
+<div class="page" id="page-basket">
+  <div class="basket-page">
+    <div class="section-title">
+      Your Basket
+      <span class="count-badge" id="basketBadge">0 items</span>
+    </div>
+    <div id="basketItems"></div>
+    <div id="checkoutCard" style="display:none">
+      <div class="checkout-card">
+        <div class="checkout-row"><span>Subtotal</span><span class="val" id="subtotalVal">£0.00</span></div>
+        <div class="checkout-row"><span>Nectar discount</span><span class="val" style="color:var(--green)">-£0.00</span></div>
+        <div class="checkout-row total"><span>Total</span><span class="val" id="totalVal">£0.00</span></div>
+        <button class="btn-checkout" onclick="openPaySheet()">Pay Now →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="bottom-nav">
+  <button class="nav-item active" id="nav-scan" onclick="showPage('scan')">
+    <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M14 14h3v3m0 4h4m-4 0v-4m4 4v-4m0-4h-4"/></svg>
+    Scan
+  </button>
+  <button class="nav-item" id="nav-basket" onclick="showPage('basket')">
+    <svg viewBox="0 0 24 24"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg>
+    Basket
+    <span class="nav-badge" id="navBadge">0</span>
+  </button>
+</nav>
+
+<!-- MANUAL BARCODE MODAL -->
+<div class="modal-overlay" id="manualModal" onclick="closeManualOnBg(event)">
+  <div class="modal-sheet">
+    <div class="sheet-handle"></div>
+    <div class="modal-title">Enter Barcode</div>
+    <div class="modal-sub">Type the number printed below the barcode lines</div>
+    <input class="manual-input" id="manualInput" type="number" placeholder="e.g. 5000112637922" inputmode="numeric" autocomplete="off">
+    <button class="btn-lookup" onclick="lookupManual()">Look Up Product</button>
+    <button class="btn-close-modal" onclick="closeManualModal()">Cancel</button>
+    <div class="examples-label">⚡ Or tap an example</div>
+    <div class="example-list" id="exampleList"></div>
+  </div>
+</div>
+
+<!-- PRODUCT RESULT SHEET -->
+<div class="result-overlay" id="resultOverlay" onclick="closeResultOnBg(event)">
+  <div class="result-sheet">
+    <div class="sheet-handle"></div>
+    <div id="resultContent"></div>
+  </div>
+</div>
+
+
+<!-- PAYMENT SHEET -->
+<div class="pay-overlay" id="payOverlay" onclick="closePayOnBg(event)">
+  <div class="pay-sheet">
+    <div class="sheet-handle"></div>
+    <div class="pay-title">Choose Payment</div>
+    <div class="pay-sub">Select how you'd like to pay</div>
+    <div class="pay-total-row">
+      <div class="pay-total-label">Total to pay</div>
+      <div class="pay-total-val" id="payTotalVal">£0.00</div>
+    </div>
+    <div id="nativePayBtn"></div>
+    <div class="pay-divider"><span>or pay by card</span></div>
+    <button class="btn-scan-card" onclick="startCardScan()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+        <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+      </svg>
+      Scan Credit / Debit Card
+    </button>
+    <button class="btn-scan-card" onclick="showCardForm()" style="margin-top:0">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20">
+        <rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>
+      </svg>
+      Enter Card Details
+    </button>
+    <div class="card-form" id="cardForm">
+      <div class="card-field-label">Card Number</div>
+      <input class="card-input" id="cardNum" type="text" placeholder="1234 5678 9012 3456" maxlength="19" inputmode="numeric">
+      <div class="card-field-label">Name on Card</div>
+      <input class="card-input" id="cardName" type="text" placeholder="J. Smith">
+      <div class="card-row">
+        <div style="flex:1">
+          <div class="card-field-label">Expiry</div>
+          <input class="card-input" id="cardExp" type="text" placeholder="MM/YY" maxlength="5" inputmode="numeric">
+        </div>
+        <div style="flex:1">
+          <div class="card-field-label">CVV</div>
+          <input class="card-input" id="cardCvv" type="text" placeholder="123" maxlength="4" inputmode="numeric">
+        </div>
+      </div>
+      <button class="btn-pay-card" onclick="processPayment()">Pay Now</button>
+    </div>
+    <button class="btn-close-pay" onclick="closePaySheet()">Cancel</button>
+  </div>
+</div>
+
+<!-- CARD SCAN OVERLAY -->
+<div class="card-scan-overlay" id="cardScanOverlay">
+  <div class="card-frame">
+    <div class="card-chip"></div>
+    <div class="card-scan-line"></div>
+    <div class="card-corner tl"></div><div class="card-corner tr"></div>
+    <div class="card-corner bl"></div><div class="card-corner br"></div>
+  </div>
+  <div class="card-scan-hint">Hold your card steady<br>within the frame</div>
+  <button class="btn-cancel-scan" onclick="cancelCardScan()">Cancel</button>
+</div>
+
+<!-- LOADING -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="spinner"></div>
+  <div>Looking up product…</div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<!-- SUCCESS -->
+<div class="success-overlay" id="successOverlay">
+  <div class="check">✓</div>
+  <h2>Payment Done!</h2>
+  <p>Thank you for shopping with SmartShop</p>
+  <div class="success-total" id="successTotal">£0.00</div>
+  <button class="btn-done" onclick="resetAll()">New Shop</button>
+</div>
+
+<script>
+const basket = [];
+let cameraActive = false;
+let stream = null;
+let scanCooldown = false;
+let currentProduct = null;
+let currentQty = 1;
+let currentPrice = 0;
+
+// Bundled product data — no network needed for examples
+const EXAMPLES = [
+  {
+    name: "Coca-Cola 330ml", code: "5000112637922",
+    data: { product_name: "Coca-Cola Original Taste", brands: "Coca-Cola", quantity: "330ml",
+      image_front_url: "https://images.openfoodfacts.org/images/products/500/011/263/7922/front_en.9.400.jpg",
+      nutriments: { "energy-kcal_100g": 42, fat_100g: 0, carbohydrates_100g: 10.6, proteins_100g: 0 },
+      allergens_tags: [] }
+  },
+  {
+    name: "Nutella 400g", code: "3017620422003",
+    data: { product_name: "Nutella", brands: "Ferrero", quantity: "400g",
+      image_front_url: "https://images.openfoodfacts.org/images/products/301/762/042/2003/front_en.94.400.jpg",
+      nutriments: { "energy-kcal_100g": 539, fat_100g: 30.9, carbohydrates_100g: 57.5, proteins_100g: 6.3 },
+      allergens_tags: ["en:milk","en:nuts","en:soybeans"] }
+  },
+  {
+    name: "Heinz Tomato Soup", code: "00013000006408",
+    data: { product_name: "Heinz Classic Tomato Soup", brands: "Heinz", quantity: "400g",
+      image_front_url: "https://images.openfoodfacts.org/images/products/000/130/000/06408/front_en.7.400.jpg",
+      nutriments: { "energy-kcal_100g": 47, fat_100g: 1.1, carbohydrates_100g: 7.5, proteins_100g: 0.8 },
+      allergens_tags: ["en:celery"] }
+  },
+  {
+    name: "Kit Kat 4-finger", code: "8410100009104",
+    data: { product_name: "Kit Kat 4 Finger Milk Chocolate", brands: "Nestlé", quantity: "41.5g",
+      image_front_url: "https://images.openfoodfacts.org/images/products/841/010/000/9104/front_en.10.400.jpg",
+      nutriments: { "energy-kcal_100g": 506, fat_100g: 24.6, carbohydrates_100g: 63.2, proteins_100g: 6.3 },
+      allergens_tags: ["en:gluten","en:milk","en:soybeans"] }
+  },
+  {
+    name: "Pringles Original", code: "5053827114861",
+    data: { product_name: "Pringles Original", brands: "Pringles", quantity: "165g",
+      image_front_url: "https://images.openfoodfacts.org/images/products/505/382/711/4861/front_en.6.400.jpg",
+      nutriments: { "energy-kcal_100g": 536, fat_100g: 33, carbohydrates_100g: 54, proteins_100g: 4.4 },
+      allergens_tags: ["en:milk","en:wheat"] }
+  },
+  {
+    name: "Cadbury Dairy Milk", code: "7622210449283",
+    data: { product_name: "Cadbury Dairy Milk", brands: "Cadbury", quantity: "110g",
+      image_front_url: "https://images.openfoodfacts.org/images/products/762/221/044/9283/front_en.28.400.jpg",
+      nutriments: { "energy-kcal_100g": 534, fat_100g: 30, carbohydrates_100g: 56.5, proteins_100g: 7.7 },
+      allergens_tags: ["en:milk","en:gluten","en:soybeans"] }
+  },
+];
+
+function init() {
+  const list = document.getElementById('exampleList');
+  EXAMPLES.forEach(ex => {
+    const row = document.createElement('div');
+    row.className = 'example-row';
+    row.innerHTML = `<span class="ex-name">${ex.name}</span><span class="ex-code">${ex.code}</span>`;
+    row.onclick = () => { closeManualModal(); showProduct(ex.data, ex.code); };
+    list.appendChild(row);
+  });
+  document.getElementById('manualInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') lookupManual();
+  });
+}
+
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'basket') renderBasket();
+}
+
+async function startCamera() {
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+    const video = document.getElementById('camera-video');
+    video.srcObject = stream;
+    document.getElementById('scanDefault').style.display = 'none';
+    document.getElementById('cameraView').classList.add('active');
+    cameraActive = true;
+    startQuagga(video);
+  } catch (e) {
+    showToast('Camera access denied — use manual entry instead');
+  }
+}
+
+function stopCamera() {
+  if (stream) { stream.getTracks().forEach(t => t.stop()); stream = null; }
+  try { Quagga.stop(); } catch(e) {}
+  document.getElementById('cameraView').classList.remove('active');
+  document.getElementById('scanDefault').style.display = 'flex';
+  cameraActive = false;
+}
+
+function startQuagga(video) {
+  Quagga.init({
+    inputStream: { type: 'LiveStream', target: video, constraints: { facingMode: 'environment' } },
+    decoder: { readers: ['ean_reader', 'ean_8_reader', 'upc_reader', 'upc_e_reader', 'code_128_reader'] },
+    locate: true,
+  }, err => {
+    if (err) return;
+    Quagga.start();
+  });
+  Quagga.onDetected(result => {
+    if (scanCooldown) return;
+    const code = result.codeResult.code;
+    if (!code) return;
+    scanCooldown = true;
+    document.getElementById('camStatus').textContent = `✅ Detected: ${code}`;
+    setTimeout(() => {
+      scanCooldown = false;
+      document.getElementById('camStatus').textContent = '📷 Point at a barcode…';
+    }, 3000);
+    stopCamera();
+    lookupBarcode(code);
+  });
+}
+
+function showManualModal() {
+  document.getElementById('manualModal').classList.add('show');
+  setTimeout(() => document.getElementById('manualInput').focus(), 350);
+}
+function closeManualModal() {
+  document.getElementById('manualModal').classList.remove('show');
+  document.getElementById('manualInput').value = '';
+}
+function closeManualOnBg(e) {
+  if (e.target === document.getElementById('manualModal')) closeManualModal();
+}
+function lookupManual() {
+  const val = document.getElementById('manualInput').value.trim();
+  if (!val) { showToast('Please enter a barcode number'); return; }
+  closeManualModal();
+  lookupBarcode(val);
+}
+
+async function lookupBarcode(code) {
+  const cached = EXAMPLES.find(e => e.code === code);
+  if (cached) { showProduct(cached.data, code); return; }
+  showLoading(true);
+  try {
+    const res = await fetch(`https://world.openfoodfacts.org/api/v2/product/${code}.json`);
+    const data = await res.json();
+    showLoading(false);
+    if (data.status === 0 || !data.product) { showError(code); return; }
+    showProduct(data.product, code);
+  } catch (e) {
+    showLoading(false);
+    showToast('Network error — check your connection');
+  }
+}
+
+function showProduct(product, code) {
+  currentProduct = product;
+  currentProduct._barcode = code;
+  currentQty = 1;
+  currentPrice = parseFloat((((parseInt(code) % 599) + 49) / 100).toFixed(2));
+  if (currentPrice < 0.29) currentPrice = 0.79;
+
+  const name = product.product_name || product.product_name_en || 'Unknown Product';
+  const brand = product.brands || '';
+  const weight = product.quantity || '';
+  const imgUrl = product.image_front_url || product.image_url || '';
+  const nutr = product.nutriments || {};
+  const per100 = {
+    kcal: Math.round(nutr['energy-kcal_100g'] || (nutr['energy_100g'] || 0) / 4.184 || 0),
+    fat: nutr.fat_100g != null ? nutr.fat_100g.toFixed(1) : '—',
+    carbs: nutr.carbohydrates_100g != null ? nutr.carbohydrates_100g.toFixed(1) : '—',
+    protein: nutr.proteins_100g != null ? nutr.proteins_100g.toFixed(1) : '—',
+  };
+  const allergens = (product.allergens_tags || []).map(a => a.replace('en:','').replace(/-/g,' ')).filter(Boolean);
+  const imgHtml = imgUrl
+    ? `<img class="product-img" src="${imgUrl}" onerror="this.style.display='none'" alt="">`
+    : `<div class="product-img-placeholder">🛒</div>`;
+
+  document.getElementById('resultContent').innerHTML = `
+    <div class="product-header">
+      ${imgHtml}
+      <div class="product-info">
+        ${brand ? `<div class="product-brand">${brand}</div>` : ''}
+        <div class="product-name">${name}</div>
+        ${weight ? `<div class="product-weight">${weight}</div>` : ''}
+      </div>
+    </div>
+    ${allergens.length ? `<div class="allergen-wrap">${allergens.map(a=>`<span class="allergen-tag">⚠ ${a}</span>`).join('')}</div>` : ''}
+    <div class="nutri-row">
+      <div class="nutri-pill"><div class="nutri-val">${per100.kcal}</div><div class="nutri-key">kcal</div></div>
+      <div class="nutri-pill"><div class="nutri-val">${per100.fat}g</div><div class="nutri-key">fat</div></div>
+      <div class="nutri-pill"><div class="nutri-val">${per100.carbs}g</div><div class="nutri-key">carbs</div></div>
+      <div class="nutri-pill"><div class="nutri-val">${per100.protein}g</div><div class="nutri-key">protein</div></div>
+    </div>
+    <div class="price-row">
+      <div class="price-label">Unit price</div>
+      <div class="price-val">£${currentPrice.toFixed(2)}</div>
+    </div>
+    <div class="qty-row">
+      <div class="qty-label">Quantity</div>
+      <div class="qty-ctrl">
+        <button class="qty-btn" onclick="changeQty(-1)">−</button>
+        <div class="qty-val" id="qtyDisplay">1</div>
+        <button class="qty-btn" onclick="changeQty(1)">+</button>
+      </div>
+    </div>
+    <button class="btn-add-basket" onclick="addToBasket()">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="20" height="20"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg>
+      Add to Basket
+    </button>
+    <button class="btn-cancel" onclick="closeResult()">Cancel</button>
+  `;
+  document.getElementById('resultOverlay').classList.add('show');
+}
+
+function showError(code) {
+  document.getElementById('resultContent').innerHTML = `
+    <div class="error-card">
+      <div class="error-icon">❓</div>
+      <p>Product not found</p>
+      <small>Barcode: ${code}<br>Try tapping an example in the manual entry screen</small>
+    </div>
+    <button class="btn-cancel" onclick="closeResult()" style="width:100%;margin-top:12px;padding:14px;background:var(--bg);border:none;border-radius:14px;font-family:Nunito,sans-serif;font-weight:800;font-size:.95rem;cursor:pointer;">Close</button>
+  `;
+  document.getElementById('resultOverlay').classList.add('show');
+}
+
+function changeQty(delta) {
+  currentQty = Math.max(1, currentQty + delta);
+  document.getElementById('qtyDisplay').textContent = currentQty;
+}
+function closeResultOnBg(e) { if (e.target === document.getElementById('resultOverlay')) closeResult(); }
+function closeResult() { document.getElementById('resultOverlay').classList.remove('show'); }
+
+function addToBasket() {
+  if (!currentProduct) return;
+  const name = currentProduct.product_name || 'Unknown Product';
+  const img = currentProduct.image_front_url || '';
+  const code = currentProduct._barcode;
+  const existing = basket.find(i => i.code === code);
+  if (existing) existing.qty += currentQty;
+  else basket.push({ name, img, code, qty: currentQty, price: currentPrice });
+  updateBasketUI();
+  closeResult();
+  showToast(`✅ ${currentQty}× ${name.slice(0, 22)}${name.length > 22 ? '…' : ''} added`);
+}
+
+function removeFromBasket(code) {
+  const idx = basket.findIndex(i => i.code === code);
+  if (idx > -1) basket.splice(idx, 1);
+  updateBasketUI(); renderBasket();
+}
+
+function updateBasketUI() {
+  const total = basket.reduce((s,i) => s + i.price * i.qty, 0);
+  const count = basket.reduce((s,i) => s + i.qty, 0);
+  document.getElementById('topTotal').textContent = `£${total.toFixed(2)}`;
+  document.getElementById('basketCount').textContent = count;
+  document.getElementById('basketCount').classList.toggle('visible', count > 0);
+  document.getElementById('navBadge').textContent = count;
+  document.getElementById('navBadge').classList.toggle('visible', count > 0);
+}
+
+function renderBasket() {
+  const wrap = document.getElementById('basketItems');
+  const checkCard = document.getElementById('checkoutCard');
+  const totalItems = basket.reduce((s,i) => s + i.qty, 0);
+  document.getElementById('basketBadge').textContent = `${totalItems} item${totalItems !== 1 ? 's' : ''}`;
+
+  if (basket.length === 0) {
+    wrap.innerHTML = `<div class="basket-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4zM3 6h18M16 10a4 4 0 01-8 0"/></svg>
+      <p>Your basket is empty</p><small>Scan a product to get started</small>
+    </div>`;
+    checkCard.style.display = 'none';
+    return;
+  }
+
+  wrap.innerHTML = basket.map(item => {
+    const lineTotal = (item.price * item.qty).toFixed(2);
+    const imgHtml = item.img
+      ? `<img class="item-thumb" src="${item.img}" onerror="this.style.display='none';this.nextSibling.style.display='flex'" alt=""><div class="item-thumb-ph" style="display:none">🛒</div>`
+      : `<div class="item-thumb-ph">🛒</div>`;
+    return `<div class="basket-item">
+      ${imgHtml}
+      <div class="item-detail">
+        <div class="item-name">${item.name}</div>
+        <div class="item-qty-price">£${item.price.toFixed(2)} × ${item.qty}</div>
+      </div>
+      <div class="item-price">£${lineTotal}</div>
+      <button class="item-remove" onclick="removeFromBasket('${item.code}')">
+        <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6M10 11v6M14 11v6M9 6V4h6v2"/></svg>
+      </button>
+    </div>`;
+  }).join('');
+
+  const subtotal = basket.reduce((s,i) => s + i.price * i.qty, 0);
+  document.getElementById('subtotalVal').textContent = `£${subtotal.toFixed(2)}`;
+  document.getElementById('totalVal').textContent = `£${subtotal.toFixed(2)}`;
+  checkCard.style.display = 'block';
+}
+
+function checkout() {
+  const total = basket.reduce((s,i) => s + i.price * i.qty, 0);
+  document.getElementById('successTotal').textContent = `£${total.toFixed(2)}`;
+  document.getElementById('successOverlay').classList.add('show');
+}
+
+function resetAll() {
+  basket.length = 0;
+  updateBasketUI(); renderBasket();
+  document.getElementById('successOverlay').classList.remove('show');
+  showPage('scan');
+}
+
+function showLoading(v) { document.getElementById('loadingOverlay').classList.toggle('show', v); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+
+// ═══════════════════════════════════════
+// PAYMENT
+// ═══════════════════════════════════════
+function detectOS() {
+  const ua = navigator.userAgent;
+  if (/iP(hone|ad|od)/.test(ua)) return 'ios';
+  if (/Android/.test(ua)) return 'android';
+  if (/Mac/.test(ua) && !('ontouchstart' in window)) return 'mac'; // Safari desktop
+  return 'other';
+}
+
+function openPaySheet() {
+  const total = basket.reduce((s,i) => s + i.price * i.qty, 0);
+  document.getElementById('payTotalVal').textContent = `£${total.toFixed(2)}`;
+
+  // Inject the right native pay button based on OS
+  const os = detectOS();
+  const nativeWrap = document.getElementById('nativePayBtn');
+  if (os === 'ios' || os === 'mac') {
+    nativeWrap.innerHTML = `
+      <button class="btn-native-pay btn-apple-pay" onclick="processPayment()">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+        </svg>
+        Pay with Apple Pay
+      </button>`;
+  } else if (os === 'android') {
+    nativeWrap.innerHTML = `
+      <button class="btn-native-pay btn-google-pay" onclick="processPayment()">
+        <svg width="50" height="20" viewBox="0 0 50 20">
+          <text y="16" font-family="Arial" font-weight="700" font-size="14">
+            <tspan fill="#4285F4">G</tspan><tspan fill="#EA4335">o</tspan><tspan fill="#FBBC05">o</tspan><tspan fill="#4285F4">g</tspan><tspan fill="#34A853">l</tspan><tspan fill="#EA4335">e</tspan>
+          </text>
+          <text x="52" y="16" font-family="Arial" font-weight="500" font-size="13" fill="#3c4043"> Pay</text>
+        </svg>
+      </button>`;
+  } else {
+    // Desktop — show both as options
+    nativeWrap.innerHTML = `
+      <button class="btn-native-pay btn-apple-pay" onclick="processPayment()" style="margin-bottom:8px">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+          <path d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"/>
+        </svg>
+        Pay with Apple Pay
+      </button>
+      <button class="btn-native-pay btn-google-pay" onclick="processPayment()">
+        <svg width="50" height="20" viewBox="0 0 60 20">
+          <text y="16" font-family="Arial" font-weight="700" font-size="14">
+            <tspan fill="#4285F4">G</tspan><tspan fill="#EA4335">o</tspan><tspan fill="#FBBC05">o</tspan><tspan fill="#4285F4">g</tspan><tspan fill="#34A853">l</tspan><tspan fill="#EA4335">e</tspan>
+          </text>
+          <text x="52" y="16" font-family="Arial" font-weight="500" font-size="13" fill="#3c4043"> Pay</text>
+        </svg>
+      </button>`;
+  }
+
+  document.getElementById('payOverlay').classList.add('show');
+}
+
+function closePaySheet() {
+  document.getElementById('payOverlay').classList.remove('show');
+  document.getElementById('cardForm').classList.remove('show');
+}
+
+function closePayOnBg(e) {
+  if (e.target === document.getElementById('payOverlay')) closePaySheet();
+}
+
+function showCardForm() {
+  document.getElementById('cardForm').classList.toggle('show');
+  if (document.getElementById('cardForm').classList.contains('show')) {
+    setTimeout(() => document.getElementById('cardNum').focus(), 100);
+  }
+}
+
+// Format card number with spaces
+document.addEventListener('DOMContentLoaded', () => {
+  const cardNum = document.getElementById('cardNum');
+  if (cardNum) {
+    cardNum.addEventListener('input', e => {
+      let v = e.target.value.replace(/\D/g,'').slice(0,16);
+      e.target.value = v.replace(/(.{4})/g,'$1 ').trim();
+    });
+  }
+  const cardExp = document.getElementById('cardExp');
+  if (cardExp) {
+    cardExp.addEventListener('input', e => {
+      let v = e.target.value.replace(/\D/g,'');
+      if (v.length >= 2) v = v.slice(0,2) + '/' + v.slice(2,4);
+      e.target.value = v;
+    });
+  }
+});
+
+let cardScanTimer = null;
+function startCardScan() {
+  document.getElementById('cardScanOverlay').classList.add('show');
+  // Simulate card detection after 2.5s
+  cardScanTimer = setTimeout(() => {
+    cancelCardScan();
+    // Pre-fill with mock scanned data
+    document.getElementById('cardNum').value = '4539 1488 0343 6467';
+    document.getElementById('cardName').value = 'J. SMITH';
+    document.getElementById('cardExp').value = '09/27';
+    document.getElementById('cardCvv').value = '';
+    document.getElementById('cardForm').classList.add('show');
+    showToast('✅ Card scanned — enter CVV to pay');
+  }, 2500);
+}
+
+function cancelCardScan() {
+  clearTimeout(cardScanTimer);
+  document.getElementById('cardScanOverlay').classList.remove('show');
+}
+
+function processPayment() {
+  closePaySheet();
+  checkout();
+}
+
+init();
+</script>
+</body>
+</html>
