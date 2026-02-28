@@ -1,5 +1,6 @@
 # SmartShop App
 
+<<<<<<< HEAD
 Speed thru checkout
 
 ## Main Menu (iPhone)
@@ -40,15 +41,18 @@ Checkout view on **Android**, showing the added item in the cart, ready for paym
 Final screen on **iPhone** after selecting payment methods, showing the confirmation and total amount.
 
 ---
+=======
+A self-scan prototype built with vanilla HTML/CSS/JS.
+>>>>>>> a298c79684affe73aad8d6dddca4c307a6c96035
 
 ## Features
 
-- 📷 Live barcode scanning via camera (Quagga.js)
-- 🔢 Manual barcode entry
-- 🛒 Real product data from Open Food Facts API (no key required)
-- 🍫 6 bundled example products (works offline)
-- 💳 Payment sheet with Apple Pay / Google Pay (OS-detected) + card scan UI
-- 📱 Mobile-first responsive design
+-  Live barcode scanning via camera (Quagga.js)
+-  Manual barcode entry
+-  Real product data from Open Food Facts API (no key required)
+-  6 bundled example products (works offline)
+-  Payment sheet with Apple Pay / Google Pay (OS-detected) + card scan UI
+-  Mobile-first responsive design
 
 ## Usage
 
